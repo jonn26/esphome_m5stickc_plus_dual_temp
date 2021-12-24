@@ -1,0 +1,168 @@
+esphome:
+  name: $devicename
+  platform: ESP32
+  board: m5stick-c
+  platformio_options:
+    #upload_speed: 115200
+    upload_speed: 1500000
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_pw
+  #domain: .jonn26.lan
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  password: !secret esphome_rest_pw
+
+ota:
+  password: !secret esphome_ota_pw
+
+i2c:
+#apx192
+   - id: bus_a
+     sda: GPIO21
+     scl: GPIO22
+     scan: True
+
+binary_sensor:
+  - platform: status
+    id: system_status
+    name: $upper_devicename Status
+
+  - platform: gpio
+    id: m5_button
+    pin:
+      number: GPIO37
+      inverted: true
+
+sensor:
+# AXP192 power management - must be present to initialize TFT power on
+  - platform: axp192
+    address: 0x34
+    i2c_id: bus_a
+    update_interval: 30s
+    battery_level:
+      name: "$upper_devicename Battery Level"
+      id: battery_level
+
+  - platform: dallas
+    address: 0xA5800000277E7928
+    name: "$upper_devicename Temp #1"
+    id: temp1
+
+  - platform: dallas
+    address: 0x2A8000002788CF28
+    name: "$upper_devicename Temp #2"
+    id: temp2
+    
+  - platform: uptime
+    name: "$upper_devicename Uptime"
+
+dallas:
+  - pin: GPIO32
+
+spi:
+  clk_pin: GPIO13
+  mosi_pin: GPIO15
+
+font:
+  - file: 'arial.ttf'
+    id: arial_10
+    size: 10
+
+  - file: 'arial.ttf'
+    id: arial_12
+    size: 12
+
+  - file: 'arial.ttf'
+    id: arial_18
+    size: 18
+
+  - file: 'arial.ttf'
+    id: arial_24
+    size: 24
+
+color:
+  - id: my_red
+    red: 100%
+    green: 0%
+    blue: 0%
+  - id: my_yellow
+    red: 100%
+    green: 100%
+    blue: 0%
+  - id: my_green
+    red: 0%
+    green: 100%
+    blue: 0%
+  - id: my_blue
+    red: 0%
+    green: 0%
+    blue: 100%
+  - id: my_gray
+    red: 50%
+    green: 50%
+    blue: 50%
+  - id: my_white
+    red: 95%
+    green: 95%
+    blue: 95%
+
+display:
+  - platform: st7789v
+    backlight_pin: GPIO26
+    cs_pin: GPIO5
+    dc_pin: GPIO23
+    reset_pin: GPIO18
+    rotation: 270
+
+    lambda: |-
+      it.rectangle(0,  0, it.get_width(), it.get_height(), id(my_blue));
+      it.rectangle(0, 20, it.get_width(), it.get_height(), id(my_blue));   // header bar
+
+      it.print(10, 5, id(arial_12), id(my_white), TextAlign::TOP_LEFT, "Water Heater Temp");
+
+      if (id(system_status).state) {
+        it.print(235, 5, id(arial_12), id(my_green), TextAlign::TOP_RIGHT, "Online");
+      }
+      else {
+        it.print(235, 5, id(arial_12), id(my_red), TextAlign::TOP_RIGHT, "Offline");
+      }
+
+      it.print(10, 40, id(arial_24), id(my_white), TextAlign::LEFT, "Temp 1: ");
+      if (id(temp1).has_state()) {
+        char temp1_str[128];
+        sprintf(temp1_str, "%.0f°F", id(temp1).state * (9.0/5.0) + 32.0);
+        it.print(150, 40, id(arial_24), id(my_red), TextAlign::RIGHT, temp1_str);
+      } else {
+        it.print(150, 40, id(arial_24), id(my_red), TextAlign::RIGHT, "Unk");
+      }
+
+      it.print(10, 70, id(arial_24), id(my_white), TextAlign::LEFT, "Temp 2: ");
+      if (id(temp2).has_state()) {
+        char temp2_str[128];
+        sprintf(temp2_str, "%.0f°F", id(temp2).state * (9.0/5.0) + 32.0);
+        it.print(150, 70, id(arial_24), id(my_red), TextAlign::RIGHT, temp2_str);
+      } else {
+        it.print(150, 70, id(arial_24), id(my_red), TextAlign::RIGHT, "Unk");
+      }
+
+      // Print time
+      it.strftime(120, 135, id(arial_18), id(my_gray), TextAlign::BOTTOM_CENTER, "%H:%M:%S %Y-%m-%d", id(sntp_time).now());
+      //it.strftime(10, 100, id(arial_18), id(my_gray), TextAlign::BOTTOM_RIGHT, "%Y-%m-%d", id(sntp_time).now());
+
+
+time:
+  - platform: homeassistant
+    id: hass_time
+  - platform: sntp
+    id: sntp_time
+
+#output:
+#  - id: status_light
+#    platform: gpio
+#    pin: GPIO10

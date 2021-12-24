@@ -1,0 +1,5 @@
+substitutions:
+  devicename: water-heater
+  upper_devicename: "Water Heater"
+
+<<: !include m5cplus_water_heater_common.yaml
